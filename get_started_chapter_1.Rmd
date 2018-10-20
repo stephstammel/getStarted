@@ -1,0 +1,152 @@
+---
+title: "Session 1 Get Started"
+author: "Steph de Silva"
+date: "20/10/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Welcome to learning R! We're going to start out with the basics. This file will guide you through your introduction to R.
+
+# How does R _work_?
+
+R is a high level programming language. It's built on lower level programming languages like C++. 
+
+It's _high level_ which means there's a lot of functionality built in to make life easier on the programmer.
+
+Most people use R in an _integrated development environment (IDE)_. The most popular of these is RStudio. The advantage of an IDE is that there is alot of built in tools and functionality to make life easier as a programmer.
+
+You'll note we talk alot about _ease_. That's because I, personally, am lazy.
+
+# Introducing the IDE
+
+Since you will most likely be using R in the IDE, let's introduce it to you to start with.
+
+There are four main windows in the RStudio IDE, though there are others.
+
+![Four main windows](./images/The RStudio IDE.png)
+
+Let's start by trying out the console. Try typing `2 + 3` in the console window, hit enter.
+
+![Using the console](./images/console.png)
+
+What happens? Good. You've just discovered that R is your new desktop calculator.
+
+Let's create a new R script, where we can record and write large amounts of code.
+
+![New R script](./images/new r script.png)
+
+Let's put some code in it now.
+
+Try putting in `x <- 2 + 3`, then saving your file.
+
+Highlight the code and press `command + enter` and check the environment window.
+
+![First code](./images/first code.png)
+
+Congratulations, you've run your first script!
+
+# Where do things live in R?
+
+Finding where things _are_ can be a real challenge when learning a new programming language and IDE.
+
+![Where does it live?](./images/Where does it live.png)
+
+# R lives and breathes _packages_
+
+The real power of R is a world wide community of developers, nerds and enthusiasts who are constantly writing new packages - chunks of code that you can reuse for you own purpose.
+
+There are many places these packages can be retrieved from, but one of those places is Github. The package that generates this document is in a github repository and you can download it.
+
+Copy the following code into the console: this downloads the package. You only need to do this once.
+
+```{r echo = TRUE, eval = FALSE}
+install.packages("devtools")
+devtools::install_github("stephdesilva/getStarted")
+```
+
+Now to load the package into the environment, type this:
+
+```{r echo = TRUE, eval = TRUE}
+library(getStarted)
+```
+
+You've now got this package and the code that generates this document on your computer.
+
+# Time to get some data
+
+Getting data into R the first time can be tricky, so this package has a simple function to get us some data to start with.
+
+Open a new script and type, highlight and press `command/control + enter`.
+
+```{r echo = TRUE, eval = TRUE}
+db <- getWitchData()
+```
+
+Check out the environment window - do you see db? Click on it.
+
+This is a data frame. A data frame is one of many types of data structures in R.
+
+There's _homogenous data structures_:
+
+![Data structures in R](./images/Atomic data structures.png)
+
+There are also _heterogeneous data structures_, and a dataframe like `db` is one of these:
+
+![Heterogeneous data structures in R](./images/Atomic data structures 2.png)
+
+The data frame `db` has 12 variables. Variables are very similar to variables in SAS.
+
+# Starting a data analysis
+
+One of the main things you'll want to use R for is data analysis. Let's use `db` to do a simple data analysis. 
+
+Let's start by seeing what's inside `db`.
+
+The top rows:
+
+```{r echo = TRUE, eval = TRUE}
+head(db)
+```
+
+The bottom rows:
+
+```{r echo = TRUE, eval = TRUE}
+tail(db)
+```
+
+Summarise the data quickly:
+
+```{r echo = TRUE, eval = TRUE}
+summary(db)
+```
+
+There's a really useful package called `skimr` which helps you see your data very quickly and efficiently. To get it, we install it first, then load it into the library.
+
+```{r echo = FALSE, eval = TRUE}
+install.packages("skimr", repos = "http://cran.us.r-project.org") # you only need to do this the first 
+```
+
+```{r echo = TRUE, eval = FALSE}
+install.packages("skimr") # you only need to do this the first time you load a package
+```
+
+Now to load it into the environment:
+
+```{r echo = TRUE, eval = TRUE}
+library(skimr) # you need to do this every time.
+```
+
+Then we use the function we want to skim the data:
+
+```{r echo = TRUE, eval = TRUE}
+skim(db) # the function we want
+```
+
+What do we now know about our data?
+
+
+
