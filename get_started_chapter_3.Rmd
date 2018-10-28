@@ -1,0 +1,357 @@
+---
+title: "Session 3 Get Learning"
+author: "Steph de Silva"
+date: "28/10/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## knn - k nearest neighbours
+
+Clustering is an _unsupevised_ machine learning technique. We can use it when we want to look at groups, but we have no means of labelling them.
+
+Let's start with some data, but first some packages.
+
+```{r, echo = TRUE}
+library(tidyverse)
+library(readxl)
+```
+
+Now let's get the data. In this case, let's look at the loanbook of Ratesetter, an Australian fintech. We're using the package `readxl`, which does exactly what it says on the box.
+
+```{r, echo = TRUE}
+loan_book <- read_xlsx("./data/20170630loanbook-1.xlsx", sheet = "RSLoanBook", col_names = TRUE, skip = 8)
+```
+
+What we'd like to do is examine the different types of loans and see if there are any 'natural' clusters. First, we need a serious data analysis on our data though.
+
+```{r, echo = TRUE}
+head(loan_book)
+```
+
+OK so we have 15 variables and over 9500 observations. Remember `skimr`? Let's use that.
+
+```{r, echo = TRUE}
+library(skimr)
+skim(loan_book)
+```
+
+There are a number of character variables that would be better as factors, so we can use them more effectively. Let's swap them over.
+
+One way to do this is use the `as.factor()` function.
+
+Some of these like age and income are actually ordered, so we will tell R what the order should be. To do that, we use the `factor()` function and the `levels` argument.
+
+```{r, echo = TRUE}
+loan_book$BorrowerAge <- factor(loan_book$BorrowerAge, levels = c("<20", "20-29", "30-39" , "40-49", "50-59", "60-69", "70-79", "80-89"))
+str(loan_book$BorrowerAge)
+```
+
+Let's go ahead and do the rest.
+
+```{r, echo = TRUE}
+loan_book$FinancePurpose <- as.factor(loan_book$FinancePurpose)
+loan_book$EmploymentStatus <- as.factor(loan_book$EmploymentStatus)
+loan_book$BorrowerIncome <- factor(loan_book$BorrowerIncome, levels = c("<$50K", "$50-100K", "$100-150K", ">$150K"))
+loan_book$HousingStatus <- as.factor(loan_book$HousingStatus)
+loan_book$Gender <- as.factor(loan_book$Gender)
+loan_book$EarlyPaymentsMade <- as.factor(loan_book$EarlyPaymentsMade)
+loan_book$RepaymentStatus <- as.factor(loan_book$RepaymentStatus)
+```
+
+In any good data analysis, there's alot of viz to tell us what's going on. Let's take a look. Here's one of the loan terms, with both mean (purple) and median (blue) marked.
+
+```{r histLoanTerm, echo=TRUE, fig.show='asis'}
+
+ggplot(loan_book)+
+  geom_histogram(aes(LoanTerm), binwidth = 8, 
+                 fill = "steelblue4", na.rm = TRUE)+
+  geom_vline(aes(xintercept = mean(LoanTerm, na.rm = TRUE)),
+             colour = "plum3")+
+  geom_vline(aes(xintercept = median(LoanTerm, na.rm = TRUE)),
+             colour = "skyblue2") +
+  theme_light() +
+  xlab("Loan Terms")+
+  ylab("Frequency")
+```
+
+The rate of the loans:
+
+```{r histRate, echo=TRUE, fig.show='asis'}
+
+ggplot(loan_book)+
+  geom_histogram(aes(AnnualRate), binwidth = 0.01, 
+                 fill = "steelblue4", na.rm = TRUE)+
+  geom_vline(aes(xintercept = mean(AnnualRate, na.rm = TRUE)),
+             colour = "plum3")+
+  geom_vline(aes(xintercept = median(AnnualRate, na.rm = TRUE)),
+             colour = "skyblue2") +
+  theme_light() +
+  xlab("Annual Rate")+
+  ylab("Frequency")
+```
+
+
+```{r histAmount, echo=TRUE, fig.show='asis'}
+
+ggplot(loan_book)+
+  geom_histogram(aes(FinanceAmount), binwidth = 5000, 
+                 fill = "steelblue4", na.rm = TRUE)+
+  geom_vline(aes(xintercept = mean(FinanceAmount, na.rm = TRUE)),
+             colour = "plum3")+
+  geom_vline(aes(xintercept = median(FinanceAmount, na.rm = TRUE)),
+             colour = "skyblue2") +
+  theme_light() +
+  xlab("Financed Amount")+
+  ylab("Frequency")
+```
+
+Finally, principal outstanding. As we'd expect with a large number of loans being short term in a data set reaching back to 2014: most ratesetter loans have been fully repaid, the mode is zero. Like the financed amount, the data shows positive skew.
+
+```{r histPrincipal, echo=TRUE, fig.show='asis'}
+
+ggplot(loan_book)+
+  geom_histogram(aes(PrincipalOutstanding), binwidth = 5000, 
+                 fill = "steelblue4", na.rm = TRUE)+
+  geom_vline(aes(xintercept = mean(PrincipalOutstanding, na.rm = TRUE)),
+             colour = "plum3")+
+  geom_vline(aes(xintercept = median(PrincipalOutstanding, na.rm = TRUE)),
+             colour = "skyblue2") +
+  theme_light() +
+  xlab("Principal Outstanding")+
+  ylab("Frequency")
+```
+
+Let's turn our attention to the location of the borrower. As we'd expect, the more populous states on the eastern seaboard dominate the borrowers. It doesn't make alot of sense to try and average "states", so we'll leave that for now!
+
+```{r barBorrower, echo=TRUE, fig.show='asis'}
+
+ggplot(loan_book)+
+  geom_bar(aes(BorrowerState), 
+                 fill = "steelblue4")+
+  theme_light() +
+  xlab("Borrower's State")+
+  ylab("Frequency")
+```
+
+```{r barAge, echo=TRUE, fig.show='asis'}
+
+ggplot(loan_book)+
+  geom_bar(aes(BorrowerAge), 
+                 fill = "steelblue4")+
+  theme_light() +
+  xlab("Borrower's Age")+
+  ylab("Frequency")
+```
+
+This is another interesting distribution, slightly positively skewed, it appears the modal borrower is between 30-39, with very few borrowers under 20 or over 80.
+
+The next chart shows that the modal borrower is employed full time, while some are self employed or employed part time. Very few people with the status _houseperson_ have accessed Ratesetter for loans. Why do you think that may be? Why so few retirees? Is there another variable that might be related to this?
+```{r barEmployment, echo=TRUE, fig.show='asis'}
+ggplot(loan_book)+
+  geom_bar(aes(EmploymentStatus), 
+                 fill = "steelblue4")+
+  theme_light() +
+  theme(axis.text.x=element_text(angle=45,hjust=1, 
+                                 size = 5)) +
+  xlab("Employment of borrower")+
+  ylab("Frequency")
+```
+
+```{r barIncome, echo=TRUE, fig.show='asis'}
+ggplot(loan_book)+
+  geom_bar(aes(BorrowerIncome), 
+                 fill = "steelblue4")+
+  theme_light() +
+  theme(axis.text.x=element_text(angle=45,hjust=1, 
+                                 size = 5)) +
+  xlab("Income of borrower")+
+  ylab("Frequency")
+```
+
+Another slightly positively skewed distribution, with the majority of borrowers in the $50-100k income range.
+
+```{r barHousing, echo=TRUE, fig.show='asis'}
+ggplot(loan_book)+
+  geom_bar(aes(HousingStatus), 
+                 fill = "steelblue4")+
+  theme_light() +
+  theme(axis.text.x=element_text(angle=45,hjust=1, 
+                                 size = 5)) +
+  xlab("Housing status of borrower")+
+  ylab("Frequency")
+```
+Most borrowers own a home and have a mortgage.
+
+```{r barGender, echo=TRUE, fig.show='asis'}
+ggplot(loan_book)+
+  geom_bar(aes(Gender), 
+                 fill = "steelblue4")+
+  theme_light() +
+  theme(axis.text.x=element_text(angle=45,hjust=1, 
+                                 size = 5)) +
+  xlab("Gender of borrower")+
+  ylab("Frequency")
+```
+
+The vast majority of borrowers identified as male on a binary gender survey. Most did not make early payments.
+
+```{r barEarly, echo=TRUE, fig.show='asis'}
+ggplot(loan_book)+
+  geom_bar(aes(EarlyPaymentsMade), 
+                 fill = "steelblue4")+
+  theme_light() +
+  theme(axis.text.x=element_text(angle=45,hjust=1, 
+                                 size = 5)) +
+  xlab("Early Payments Made")+
+  ylab("Frequency")
+```
+
+```{r barRepay, echo=TRUE, fig.show='asis'}
+ggplot(loan_book)+
+  geom_bar(aes(RepaymentStatus), 
+                 fill = "steelblue4")+
+  theme_light() +
+  theme(axis.text.x=element_text(angle=45,hjust=1, 
+                                 size = 5)) +
+  xlab("Repayment Status")+
+  ylab("Frequency")
+```
+
+
+Let's start with a simple line chart for the contract date (the date the loan was signed off) and the rate of interest paid by the borrower.
+
+```{r lineChart1, echo=TRUE, fig.show='asis'}
+
+ggplot(loan_book) +
+  geom_line(aes(ContractDate, AnnualRate), 
+            colour = "steelblue4") +
+  theme_light()+
+  xlab("Date of contract") +
+  ylab("Annual rate paid by borrower")
+```
+
+In technical terms, we like to refer to a chart like this as a 'hot mess'. For the love of all that's geeky, never let a chart like this off your hard drive. I'm only including this here so you know what to do if you find one of these: _you ask more questions_. 
+
+What's going on here? Well it's hard to say. The rate being paid each year is largely between around 3% and 10% with some variation outside that. This is where we start using what consultants call _business acumen_ and normal people call _common sense_. 
+
+What's something that could be causing a big variation in the rate paid between two loans contracted within a very short period? Interest rates are pretty stable for retail loans, right? Well, here's where domain knowledge is useful. If you know anything about finance, you know the loan term is a good candidate to start with. Let's see what we can dig up there.
+
+If we want to see what the relationship between the loan term and annual rate paid is, a scatterplot is a good first step.
+
+```{r scatterPlot1, echo=TRUE, fig.show='asis'}
+
+ggplot(loan_book) +
+  geom_point(aes(LoanTerm, AnnualRate), 
+            colour = "steelblue4") +
+  theme_light()+
+  xlab("Loan Term") +
+  ylab("Annual rate paid by borrower")
+```
+
+Well, no easy answers here. While it does look like there is a relationship between annual rate and loan term, where annual rate increases with loan term - there are a few observations with very long loan terms that don't fit the pattern at all.
+
+Welcome to real data.
+
+The best option is simply to keep digging here, in my opinion.
+
+What about financed amount and the annual rate?
+
+```{r scatterPlot2, echo=TRUE, fig.show='asis'}
+
+ggplot(loan_book) +
+  geom_point(aes(FinanceAmount, AnnualRate), 
+            colour = "steelblue4") +
+  theme_light()+
+  xlab("Financed Amount") +
+  ylab("Annual rate paid by borrower")
+```
+
+Again, no easy answers! Why on earth would people borrowing the same or similar amounts be paying such remarkably different interest rates? What are the factors that could be in play here? Here's that domain knowledge coming through again- it could be something about the person (are they 'risky'?) or the loan ('is the loan more risky'?). 
+
+What makes a person 'risky'? Their income, their borrowing history (not given), their employment and even their age can be perceived as risk. 
+
+What about a loan? The financed amount, the status of the loan (is it in arrears), the term - all these things can contribute to risk too.
+
+That said, we have discovered something interesting - the financed amount for Ratesetter customers is truncated at zero. This makes sense: nobody is borrowing negative amounts. Most of the data is clustered under $10 000, but there are two distinct groups - those with a higher rate, and those with a lower for the same amount financed. What could be the reason for this behaviour?
+
+Let's see if we can colour off the difference in loan term in this chart by creating a variable called shortTerm. This variable is 1 if the loan has a term of 24 months or less and zero otherwise. For convenience when plotting, we'll turn it into a factor variable with labels and add it to the loan book.
+
+```{r scatterPlot3, echo=TRUE, fig.show='asis'}
+
+shortTerm <- ifelse(loan_book$LoanTerm <= 24, 1, 0)
+shortTerm <- factor(shortTerm)
+levels(shortTerm) <- c("> 24 months", "<= 24 months")
+loan_book <- cbind(loan_book, shortTerm)
+
+ggplot(loan_book) +
+  geom_point(aes(FinanceAmount, AnnualRate, colour = shortTerm)) +
+  theme_light()+
+  xlab("Financed Amount") +
+  ylab("Annual rate paid by borrower")
+```
+
+And bingo! We now have a pretty good idea of what's causing the difference in interest rates: it's the loan term. Short term loans are less risky than long term ones and the borrower is compensated with a lower interest rate.
+
+# Actually doing the machine learning
+
+First we need to standardise the numeric variables. We'll write a function to do this:
+
+```{r, echo = TRUE}
+standardise_variables <- function(our_variable){
+  z_score <- (our_variable - mean(our_variable))/sd(our_variable)
+  return(z_score)
+}
+```
+
+Now we have define our function, we can apply it to our data frame, but let's call it by a new name so we know what's going on. We're going to use the package `purrr`, so if you don't have it installed, you'll need to use `install.packages("purrr")`.
+
+The useful thing about `purrr` is that you can apply a function to many columns of a data frame.
+
+```{r, echo = TRUE}
+library(purrr)
+df_numeric <- loan_book[,3:6]
+ml_df <- map_dfr(df_numeric, standardise_variables)
+
+# Let's add repayment status
+
+ml_df$RepaymentStatus <- loan_book$RepaymentStatus
+
+```
+
+OK, so we need to define our training and test sets. We should always do this randomly, so here's one way of doing it. I'll show you another later. We'll take 70% for training and 30% for test.
+
+
+```{r, echo = TRUE}
+p = 0.7 # 70% of the set
+n_rows <- round(nrow(ml_df)*0.7, digits = 0) # number of rows that would be
+randomIndex <- runif(n_rows, min = 1, max = nrow(ml_df))
+
+train_set <- ml_df[randomIndex,]
+test_set <- ml_df[-randomIndex,]
+
+```
+
+Let's use the `class` package to run `knn` algorithm. Let's see how it goes on the repayment status label we added earlier.
+
+```{r, echo = TRUE}
+#install.packages("class")
+library(class)
+train_labels <- train_set[[5]]
+test_labels <- test_set[[5]]
+predictions <- knn(train = train_set[,1:4], test = test_set[,1:4], cl = train_labels, k = 3)
+```
+
+Let's see how good we did!
+
+```{r, echo = TRUE}
+#install.packages("gmodels")
+library(gmodels)
+results_table <- CrossTable(x = test_labels, y = predictions, prop.chisq = FALSE)
+
+results_table
+```
+
